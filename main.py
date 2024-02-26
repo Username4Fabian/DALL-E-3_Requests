@@ -7,18 +7,20 @@ import requests
 from datetime import datetime
 import os
 
+# This class is a QThread that generates an image using OpenAI's DALL-E 3 model
 class ImageGenerationThread(QThread):
-    finished = pyqtSignal(bytes)
-    error = pyqtSignal(str)
+    finished = pyqtSignal(bytes)  # Signal emitted when the image generation is finished
+    error = pyqtSignal(str)  # Signal emitted when there is an error
 
     def __init__(self, api_key, prompt_text):
         super().__init__()
-        self.api_key = api_key
-        self.prompt_text = prompt_text
+        self.api_key = api_key  # OpenAI API key
+        self.prompt_text = prompt_text  # Prompt text for the image generation
 
     def run(self):
         client = OpenAI(api_key=self.api_key)
         try:
+            # Generate the image
             response = client.images.generate(
                 model="dall-e-3",
                 prompt=self.prompt_text,
@@ -28,10 +30,11 @@ class ImageGenerationThread(QThread):
             )
             image_url = response.data[0].url
             img_data = requests.get(image_url).content
-            self.finished.emit(img_data)
+            self.finished.emit(img_data)  # Emit the finished signal with the image data
         except Exception as e:
-            self.error.emit(str(e))
+            self.error.emit(str(e))  # Emit the error signal with the error message
 
+# This class is a QWidget that provides the UI for the DALL-E 3 image generator
 class DalleGenerator(QWidget):
     def __init__(self):
         super().__init__()
@@ -45,35 +48,41 @@ class DalleGenerator(QWidget):
         window = self.geometry()
         self.move((screen.width() - window.width()) / 2, (screen.height() - window.height()) / 2)
 
-
         layout = QVBoxLayout()
 
+        # Create the API key entry field
         self.api_key_entry = QLineEdit(self)
         self.api_key_entry.setEchoMode(QLineEdit.Password)
         self.api_key_entry.setPlaceholderText("Enter your OpenAI API Key here")
         layout.addWidget(self.api_key_entry)
 
+        # Create the prompt entry field
         self.prompt_entry = QLineEdit(self)
         self.prompt_entry.setPlaceholderText("Enter the prompt for the image generation here")
         layout.addWidget(self.prompt_entry)
 
+        # Create the generate button
         self.generate_button = QPushButton("Generate", self)
         self.generate_button.clicked.connect(self.generate_image)
         layout.addWidget(self.generate_button)
 
+        # Create the image label
         self.image_label = QLabel(self)
         self.image_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.image_label)
 
+        # Create the error label
         self.error_label = QLabel(self)
         self.error_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.error_label)
 
+        # Create the progress bar
         self.progress = QProgressBar(self)
         self.progress.setRange(0, 0)
         self.progress.hide()
         layout.addWidget(self.progress)
 
+        # Create the download button
         self.download_button = QPushButton("Download Image", self)
         self.download_button.clicked.connect(self.download_image)
         self.download_button.hide()  # Hide the download button initially
@@ -81,16 +90,19 @@ class DalleGenerator(QWidget):
 
         self.setLayout(layout)
 
+    # This method is called when the generate button is clicked
     def generate_image(self):
         self.progress.show()
         api_key = self.api_key_entry.text()
         prompt_text = self.prompt_entry.text()
 
+        # Start the image generation thread
         self.thread = ImageGenerationThread(api_key, prompt_text)
         self.thread.finished.connect(self.on_image_generated)
         self.thread.error.connect(self.on_image_error)
         self.thread.start()
 
+    # This method is called when the image generation is finished
     def on_image_generated(self, img_data):
         pixmap = QPixmap()
         pixmap.loadFromData(img_data)
@@ -99,10 +111,12 @@ class DalleGenerator(QWidget):
         self.download_button.show()  # Show the download button when the image is loaded
         self.image_data = img_data  # Save the image data for downloading
 
+    # This method is called when there is an error in the image generation
     def on_image_error(self, error_message):
         self.error_label.setText(f"Error: {error_message}")
         self.progress.hide()
 
+    # This method is called when the download button is clicked
     def download_image(self):
         if hasattr(self, 'image_data'):
             default_dir = os.path.expanduser('~/Downloads')
