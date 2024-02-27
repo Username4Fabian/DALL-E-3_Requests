@@ -6,6 +6,7 @@ from openai import OpenAI
 import requests
 from datetime import datetime
 import os
+import qdarkstyle
 
 # This class is a QThread that generates an image using OpenAI's DALL-E 3 model
 class ImageGenerationThread(QThread):
@@ -43,10 +44,10 @@ class DalleGenerator(QWidget):
     def initUI(self):
         self.setWindowTitle("DALL-E 3 Image Generator")
         screen = QDesktopWidget().screenGeometry()
-        self.setGeometry(0, 0, screen.width() * 0.50, screen.height() * 0.50)
+        self.setGeometry(0, 0, int(screen.width() * 0.50), int(screen.height() * 0.50))
 
         window = self.geometry()
-        self.move((screen.width() - window.width()) / 2, (screen.height() - window.height()) / 2)
+        self.move(int((screen.width() - window.width()) / 2), int((screen.height() - window.height()) / 2))
 
         layout = QVBoxLayout()
 
@@ -54,11 +55,13 @@ class DalleGenerator(QWidget):
         self.api_key_entry = QLineEdit(self)
         self.api_key_entry.setEchoMode(QLineEdit.Password)
         self.api_key_entry.setPlaceholderText("Enter your OpenAI API Key here")
+        self.api_key_entry.returnPressed.connect(self.generate_image)  # Connect the returnPressed signal
         layout.addWidget(self.api_key_entry)
 
         # Create the prompt entry field
         self.prompt_entry = QLineEdit(self)
         self.prompt_entry.setPlaceholderText("Enter the prompt for the image generation here")
+        self.prompt_entry.returnPressed.connect(self.generate_image)  # Connect the returnPressed signal
         layout.addWidget(self.prompt_entry)
 
         # Create the generate button
@@ -106,12 +109,17 @@ class DalleGenerator(QWidget):
     def on_image_generated(self, img_data):
         pixmap = QPixmap()
         pixmap.loadFromData(img_data)
-        self.image_label.setPixmap(pixmap.scaled(self.width() * 0.75, self.height() * 0.75, Qt.KeepAspectRatio))
+
+        new_width = int(max(1, self.width() * 0.75))  # Convert to int and ensure minimum size
+        new_height = int(max(1, self.height() * 0.75))  # Convert to int and ensure minimum size
+
+        # Correctly set the scaled pixmap only once
+        self.image_label.setPixmap(pixmap.scaled(new_width, new_height, Qt.KeepAspectRatio, Qt.SmoothTransformation))
         self.progress.hide()
         self.download_button.show()  # Show the download button when the image is loaded
         self.image_data = img_data  # Save the image data for downloading
 
-    # This method is called when there is an error in the image generation
+            # This method is called when there is an error in the image generation
     def on_image_error(self, error_message):
         self.error_label.setText(f"Error: {error_message}")
         self.progress.hide()
@@ -130,6 +138,7 @@ class DalleGenerator(QWidget):
 
 def main():
     app = QApplication(sys.argv)
+    app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
     ex = DalleGenerator()
     ex.show()
     sys.exit(app.exec_())
